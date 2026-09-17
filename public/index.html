@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agenda de la Experiencia</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="shell">
+  <section class="card hero">
+    <p class="eyebrow">RUEDA AVIAR</p>
+    <h1>Agenda de la Experiencia</h1>
+    <p>Tu espacio digital para acompañar lo que registras en tu agenda.</p>
+  </section>
+
+  <section id="auth" class="card">
+    <div class="tabs"><button class="tab active" data-tab="login">Entrar</button><button class="tab" data-tab="register">Crear cuenta</button></div>
+    <form id="login" class="form">
+      <label>Correo<input type="email" name="email" required></label>
+      <label>Contraseña<input type="password" name="password" required></label>
+      <button>Entrar</button>
+    </form>
+    <form id="register" class="form hidden">
+      <label>Correo<input type="email" name="email" required></label>
+      <label>Contraseña <small>(mínimo 8 caracteres)</small><input type="password" name="password" minlength="8" required></label>
+      <button>Crear cuenta</button>
+    </form>
+    <p id="message" class="message"></p>
+  </section>
+
+  <section id="activate" class="card hidden">
+    <h2>Activa tu Agenda</h2>
+    <p>Introduce el código que encontrarás en la tarjeta incluida con tu agenda.</p>
+    <form id="activation" class="form">
+      <label>Código de activación<input name="code" autocomplete="off" required></label>
+      <button>Activar Agenda</button>
+    </form>
+    <button id="logout" class="secondary">Cerrar sesión</button>
+  </section>
+
+  <section id="experience" class="card hidden">
+    <p class="eyebrow">TU ESPACIO</p><h2>Tu experiencia</h2>
+    <p id="status"></p>
+    <form id="record" class="form">
+      <label>Tipo<select name="kind"><option value="registro">Registro</option><option value="narrativa">Narrativa</option></select></label>
+      <label>Escribe tu registro<textarea name="content" rows="7" required></textarea></label>
+      <button>Guardar registro</button>
+    </form>
+    <div id="records"></div>
+    <button id="logout2" class="secondary">Cerrar sesión</button>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s); const msg=t=>$('#message').textContent=t;
+async function api(url,opts={}){const r=await fetch(url,{credentials:'include',headers:{'Content-Type':'application/json'},...opts});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Ocurrió un error');return d;}
+function show(id){['auth','activate','experience'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id));}
+async function refresh(){try{await api('/api/me');const d=await api('/api/experience');show('experience');render(d);}catch(e){if(e.message.includes('No hay una agenda'))show('activate');else show('auth');}}
+function render(d){$('#status').textContent='Tu agenda está activa.';$('#records').innerHTML=d.records.length?'<h3>Registros recientes</h3>'+d.records.map(r=>`<article class="record"><strong>${escapeHtml(r.kind)}</strong><small>${new Date(r.created_at).toLocaleString()}</small><p>${escapeHtml(r.content)}</p></article>`).join(''):'<p class="muted">Todavía no tienes registros.</p>';}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+$('.tabs').onclick=e=>{if(!e.target.dataset.tab)return;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');$('#login').classList.toggle('hidden',e.target.dataset.tab!=='login');$('#register').classList.toggle('hidden',e.target.dataset.tab!=='register');msg('');};
+$('#login').onsubmit=async e=>{e.preventDefault();try{const f=new FormData(e.target);await api('/api/auth/login',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});msg('');refresh();}catch(x){msg(x.message)}};
+$('#register').onsubmit=async e=>{e.preventDefault();try{const f=new FormData(e.target);await api('/api/auth/register',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});refresh();}catch(x){msg(x.message)}};
+$('#activation').onsubmit=async e=>{e.preventDefault();try{const f=new FormData(e.target);await api('/api/activation/redeem',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});refresh();}catch(x){alert(x.message)}};
+$('#record').onsubmit=async e=>{e.preventDefault();try{const f=new FormData(e.target);await api('/api/experience/records',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});e.target.reset();refresh();}catch(x){alert(x.message)}};
+async function logout(){await api('/api/auth/logout',{method:'POST'});show('auth');}$('#logout').onclick=logout;$('#logout2').onclick=logout;refresh();
+</script>
+</body>
+</html>
