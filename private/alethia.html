@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#173d35">
+<title>ALETHIA · Tu espacio personal</title>
+<style>
+:root{color-scheme:light;--ink:#263a35;--deep:#143b33;--blue:#214764;--sage:#718d81;--cream:#f3efe4;--paper:#fffdf7;--gold:#b58a4b;--muted:#66756f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 78% 8%,#d3e1d8,transparent 28%),var(--cream);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}main{width:min(1100px,92vw);margin:0 auto;padding:26px 0 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0 24px;border-bottom:1px solid #cbd6ce}.brand{font-size:11px;letter-spacing:.18em;color:var(--deep);font-weight:800;text-decoration:none}.back{color:var(--deep);text-decoration:none;font-size:13px}.intro{padding:36px 0 22px}.eyebrow{font-size:10px;letter-spacing:.2em;color:var(--gold);font-weight:800}.intro h1{font:400 clamp(42px,6vw,66px)/1 Georgia,serif;color:var(--blue);margin:12px 0}.intro p{max-width:680px;color:var(--muted);line-height:1.8;font-size:15px}.frame-wrap{background:var(--paper);border:1px solid #cbd6ce;box-shadow:0 20px 55px #263a3510;min-height:65vh;padding:12px}.frame-wrap iframe{width:100%;height:72vh;min-height:560px;border:0;background:#fff}.notice{padding:22px;margin:0;background:var(--paper);border:1px solid #cbd6ce;line-height:1.7;color:var(--muted)}.notice strong{color:var(--deep)}.error{border-left:3px solid var(--gold)}footer{padding-top:24px;color:var(--muted);font-size:10px;letter-spacing:.12em} @media(max-width:600px){main{width:94vw}.frame-wrap{padding:4px}.frame-wrap iframe{height:75vh;min-height:500px}.intro{padding-top:24px}}
+</style>
+</head>
+<body><main>
+<header class="top"><a class="brand" href="/acceso">AGENDA DE LA EXPERIENCIA</a><a class="back" href="/acceso">← Volver a mi espacio</a></header>
+<section class="intro"><div class="eyebrow">TU ESPACIO PERSONAL</div><h1>ALETHIA</h1><p>ALETHIA te acompaña a mirar, ordenar y comprender lo que estás viviendo. Tú decides qué compartir. La lectura no es un diagnóstico ni sustituye tu criterio o el acompañamiento profesional que puedas necesitar.</p></section>
+<div id="state" class="notice" role="status">Comprobando el acceso seguro a ALETHIA…</div>
+<div id="frame" class="frame-wrap" hidden></div>
+<footer>TU EXPERIENCIA · TU CONVERSACIÓN · TU DECISIÓN</footer>
+</main>
+<script>
+(async()=>{const state=document.getElementById('state'),frame=document.getElementById('frame');try{const r=await fetch('/api/alethia/config',{credentials:'include',headers:{'Accept':'application/json'},cache:'no-store'});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'No fue posible abrir ALETHIA.');const url=new URL(data.url);if(url.protocol!=='https:'||!/(^|\\.)jotform\\.com$/i.test(url.hostname))throw new Error('La dirección configurada para ALETHIA no es válida.');const iframe=document.createElement('iframe');iframe.src=url.toString();iframe.title='Conversación privada con ALETHIA';iframe.loading='eager';iframe.allow='microphone; clipboard-write';iframe.referrerPolicy='strict-origin-when-cross-origin';frame.appendChild(iframe);state.hidden=true;frame.hidden=false;}catch(e){state.classList.add('error');state.innerHTML='<strong>El acceso a ALETHIA aún no está disponible.</strong><br>'+String(e.message||'Error de configuración')+'<br><br>Si ya activaste tu Agenda, vuelve a intentarlo más tarde o contacta con soporte.';}})();
+</script>
+</body></html>
