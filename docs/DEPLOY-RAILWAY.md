@@ -33,3 +33,8 @@ No se debe imprimir un QR que contenga códigos de activación individuales.
 - Evaluar PostgreSQL para producción/escala.
 - Revisar política de privacidad y retención de datos antes de almacenar narrativas reales.
 - No otorgar al rol Super Admin permisos para leer contenido privado.
+
+
+## Integración de ALETHIA
+
+Definir en Railway la variable de entorno `ALETHIA_AGENT_URL` con la URL pública HTTPS exacta del agente ALETHIA de Jotform (no la URL de un formulario). La ruta `/alethia` requiere sesión iniciada y una Agenda activada; el panel Super Admin no puede abrirla. La página de integración se sirve desde `private/alethia.html`, fuera de la carpeta pública. El endpoint `/api/alethia/config` solo entrega la URL a usuarios autorizados.
