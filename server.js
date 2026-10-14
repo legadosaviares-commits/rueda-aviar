@@ -12,6 +12,7 @@ const path = require('path');
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const ALETHIA_AGENT_URL = String(process.env.ALETHIA_AGENT_URL || '').trim();
 const JWT_SECRET = process.env.JWT_SECRET || 'development-only-change-me';
 const DB_PATH = process.env.DB_PATH || './data/agenda.db';
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -41,9 +42,27 @@ function logAdmin(event,metadata={}) { db.prepare('INSERT INTO admin_events(even
 app.use(express.json({limit:'1mb'})); app.use(cookieParser()); app.use(express.static(path.join(__dirname,'public')));
 app.get('/acceso',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
+// ALETHIA is available only to authenticated users with an activated Agenda.
+app.get('/alethia',auth,(req,res)=>{
+  if(req.user.role==='SUPER_ADMIN') return res.status(403).send('ALETHIA es un espacio personal y no está disponible desde el panel administrativo.');
+  const experience=db.prepare('SELECT id FROM experiences WHERE user_id=?').get(req.user.id);
+  if(!experience) return res.redirect('/acceso#activate');
+  return res.sendFile(path.join(__dirname,'private','alethia.html'));
+});
+
 app.post('/api/auth/register',(req,res)=>{ const email=String(req.body.email||'').trim().toLowerCase(); const password=String(req.body.password||''); if(!email||password.length<8)return res.status(400).json({error:'Correo y contraseña válida requeridos'}); try { const hash=bcrypt.hashSync(password,12); const result=db.prepare('INSERT INTO users(email,password_hash) VALUES(?,?)').run(email,hash); const user=db.prepare('SELECT id,email,role,active FROM users WHERE id=?').get(result.lastInsertRowid); res.cookie('session',sign(user),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:7*24*60*60*1000}); res.json({user}); } catch { res.status(409).json({error:'La cuenta ya existe'}); } });
 app.post('/api/auth/login',(req,res)=>{ const email=String(req.body.email||'').trim().toLowerCase(); const password=String(req.body.password||''); const user=db.prepare('SELECT id,email,password_hash,role,active FROM users WHERE email=?').get(email); if(!user||!user.active||!bcrypt.compareSync(password,user.password_hash))return res.status(401).json({error:'Credenciales no válidas'}); res.cookie('session',sign(user),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:7*24*60*60*1000}); res.json({user:{id:user.id,email:user.email,role:user.role}}); });
 app.post('/api/auth/logout',(req,res)=>{res.clearCookie('session');res.json({ok:true});}); app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
+app.get('/api/alethia/config',auth,(req,res)=>{
+  if(req.user.role==='SUPER_ADMIN') return res.status(403).json({error:'ALETHIA es un espacio personal.'});
+  const experience=db.prepare('SELECT id FROM experiences WHERE user_id=?').get(req.user.id);
+  if(!experience) return res.status(403).json({error:'Activa tu Agenda para acceder a ALETHIA.'});
+  if(!ALETHIA_AGENT_URL) return res.status(503).json({error:'ALETHIA todavía no está configurada. El administrador debe definir ALETHIA_AGENT_URL en Railway.'});
+  let parsed; try { parsed=new URL(ALETHIA_AGENT_URL); } catch { return res.status(503).json({error:'La dirección de ALETHIA no es válida.'}); }
+  if(parsed.protocol!=='https:' || !/(^|\.)jotform\.com$/i.test(parsed.hostname)) return res.status(503).json({error:'Configura la URL HTTPS oficial del agente de Jotform.'});
+  res.setHeader('Cache-Control','no-store');
+  res.json({url:parsed.toString()});
+});
 
 app.post('/api/activation/redeem',auth,(req,res)=>{ const code=String(req.body.code||'').trim().toUpperCase(); if(!code||code.length<10)return res.status(400).json({error:'Código de activación no válido'}); const row=db.prepare('SELECT id,edition_id,status FROM activation_codes WHERE code_hash=?').get(hashCode(code)); if(!row||row.status!=='unused')return res.status(400).json({error:'Código inválido o ya utilizado'}); const existing=db.prepare('SELECT id FROM experiences WHERE user_id=?').get(req.user.id); if(existing)return res.status(409).json({error:'Esta cuenta ya tiene una agenda activada'}); const tx=db.transaction(()=>{const changed=db.prepare("UPDATE activation_codes SET status='activated',user_id=?,activated_at=CURRENT_TIMESTAMP WHERE id=? AND status='unused'").run(req.user.id,row.id); if(changed.changes!==1)throw new Error('RACE'); db.prepare('INSERT INTO experiences(user_id,edition_id) VALUES(?,?)').run(req.user.id,row.edition_id);}); try {tx();res.json({ok:true,message:'Agenda activada'});} catch {res.status(409).json({error:'No fue posible activar el código'});} });
 app.get('/api/experience',auth,(req,res)=>{ const experience=db.prepare('SELECT id,edition_id,created_at FROM experiences WHERE user_id=?').get(req.user.id); if(!experience)return res.status(404).json({error:'No hay una agenda activada'}); const records=db.prepare('SELECT id,kind,content,created_at FROM private_records WHERE experience_id=? ORDER BY id DESC').all(experience.id); res.json({experience,records}); });
